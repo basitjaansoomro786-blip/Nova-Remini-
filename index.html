@@ -6,7 +6,7 @@
   <title>NOVA REMINI ✨ AI Photo Enhancer</title>
   <style>
     /* ==========================================================================
-       1. GLOBAL & THEME STYLES (NOVA REMINI CLONE)
+       1. GLOBAL & THEME STYLES
        ========================================================================== */
     * {
       box-sizing: border-box;
@@ -178,7 +178,6 @@
     }
 
     .img-before-wrapper .slider-img {
-      /* Width forced to match parent comparison box so images align perfectly */
       width: 100%;
       max-width: none;
     }
@@ -313,9 +312,9 @@
       font-size: 1.1rem;
       font-weight: 600;
       color: #FFD700;
+      text-align: center;
     }
 
-    /* Responsive adjustment */
     @media (max-width: 480px) {
       .tools-grid {
         grid-template-columns: 1fr 1fr;
@@ -358,10 +357,10 @@
         <span class="label label-before">Original</span>
         <span class="label label-after">Enhanced</span>
 
-        <!-- After Image (Full background layer) -->
-        <img id="imgAfter" class="slider-img" alt="Enhanced Photo">
+        <!-- After Image -->
+        <img id="imgAfter" class="slider-img" alt="Enhanced Photo" crossorigin="anonymous">
 
-        <!-- Before Image (Clipped overlay layer) -->
+        <!-- Before Image -->
         <div class="img-before-wrapper" id="beforeWrapper">
           <img id="imgBefore" class="slider-img" alt="Original Photo">
         </div>
@@ -385,22 +384,38 @@
   <!-- Processing Modal Loader -->
   <div class="loader-overlay" id="loader">
     <div class="spinner"></div>
-    <div class="loader-text" id="loaderText">AI Enhancing... 5 sec</div>
+    <div class="loader-text" id="loaderText">AI Enhancing... Please wait</div>
   </div>
-
-  <!-- Offscreen Canvas for Image Processing -->
-  <canvas id="processingCanvas" style="display: none;"></canvas>
 
   <script>
     /* ==========================================================================
-       REAL AI INTEGRATION PLACEHOLDER
+       REPLICATE API INTEGRATION
        ========================================================================== */
-    const REPLICATE_API_KEY = "YOUR_API_KEY_HERE";
+    const REPLICATE_API_KEY = "r8_E3SK7B1yD6a8dE3s5g17SkoDHzQxkhL0VYmr4";
+    const CORS_PROXY = "https://corsproxy.io/?";
 
-    // Global references
-    let loadedImage = null;
-    let processedCanvas = document.getElementById('processingCanvas');
-    let ctx = processedCanvas.getContext('2d');
+    // Model Specs on Replicate
+    const REPLICATE_MODELS = {
+      '4k': {
+        version: "f121d640db2896da3f610e3928ea001509c04118d5e0630935f19017327f583a", // Real-ESRGAN
+        getInput: (dataUrl) => ({ image: dataUrl, scale: 4, face_enhance: true })
+      },
+      'smooth': {
+        version: "7de2ea26c616d5bf2245ad0d5e24f0ff9a6204578a5c876db73146e07573b6f1", // CodeFormer
+        getInput: (dataUrl) => ({ image: dataUrl, codeformer_fidelity: 0.7, background_enhance: true, face_upscale: true })
+      },
+      'bg': {
+        version: "fb84d6ee38d084ee20216b2553b6f2414704f057e62a4ebf07d2f9b89793132e", // Rembg
+        getInput: (dataUrl) => ({ image: dataUrl })
+      },
+      'cartoon': {
+        version: "f121d640db2896da3f610e3928ea001509c04118d5e0630935f19017327f583a", // Anime / Enhanced stylizer
+        getInput: (dataUrl) => ({ image: dataUrl, scale: 2, face_enhance: true })
+      }
+    };
+
+    // Global variables
+    let rawImageDataUrl = null;
 
     const fileInput = document.getElementById('fileInput');
     const uploadTitle = document.getElementById('uploadTitle');
@@ -426,23 +441,16 @@
     function loadImage(file) {
       const reader = new FileReader();
       reader.onload = function(event) {
-        const img = new Image();
-        img.onload = function() {
-          loadedImage = img;
-          
-          // Set source images
-          imgBefore.src = event.target.result;
-          imgAfter.src = event.target.result;
+        rawImageDataUrl = event.target.result;
+        
+        imgBefore.src = rawImageDataUrl;
+        imgAfter.src = rawImageDataUrl;
 
-          // Enable AI tool buttons
-          toolBtns.forEach(btn => btn.disabled = false);
-          
-          uploadTitle.innerText = "Photo Loaded: " + file.name;
-          
-          // Automatically run 4K enhance on first upload
-          processImage('4k');
-        };
-        img.src = event.target.result;
+        toolBtns.forEach(btn => btn.disabled = false);
+        uploadTitle.innerText = "Photo Loaded: " + file.name;
+        
+        // Auto run 4K enhance on upload
+        processImage('4k');
       };
       reader.readAsDataURL(file);
     }
@@ -456,7 +464,6 @@
       sliderHandle.style.left = val + '%';
     });
 
-    // Ensure image alignment inside clipped before-wrapper
     function syncImageDimensions() {
       const containerWidth = document.getElementById('sliderContainer').offsetWidth;
       imgBefore.style.width = containerWidth + 'px';
@@ -464,90 +471,110 @@
     window.addEventListener('resize', syncImageDimensions);
 
     /* ==========================================================================
-       AI PROCESSING & CANVAS SIMULATION
+       REPLICATE API CALL & POLLING LOGIC
        ========================================================================== */
-    function processImage(type) {
-      if (!loadedImage) return;
+    async function processImage(type) {
+      if (!rawImageDataUrl) return;
 
-      // TODO: Call Replicate API for GFPGAN, Real-ESRGAN, Background Removal
-      // Example endpoint: https://api.replicate.com/v1/predictions
+      const modelConfig = REPLICATE_MODELS[type];
+      if (!modelConfig) return;
 
-      showLoader("AI Enhancing... Please wait");
+      showLoader(`AI Processing (${type.toUpperCase()})... Please wait`);
 
-      // Simulate AI processing delay with setTimeout (3 sec)
-      setTimeout(() => {
-        applyCanvasFilter(type);
-        
-        // Update Enhanced image view
-        imgAfter.src = processedCanvas.toDataURL('image/jpeg', 0.95);
-        
-        // Show comparison box & sync dimensions
+      try {
+        // Step 1: Create prediction on Replicate
+        const targetUrl = "https://api.replicate.com/v1/predictions";
+        const response = await fetch(CORS_PROXY + encodeURIComponent(targetUrl), {
+          method: "POST",
+          headers: {
+            "Authorization": `Token ${REPLICATE_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            version: modelConfig.version,
+            input: modelConfig.getInput(rawImageDataUrl)
+          })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.detail || "Failed to start AI prediction");
+        }
+
+        const prediction = await response.json();
+        const getUrl = prediction.urls.get;
+
+        // Step 2: Poll status until complete
+        const finalOutputUrl = await pollPredictionStatus(getUrl);
+
+        // Step 3: Render enhanced image
+        imgAfter.src = finalOutputUrl;
         comparisonContainer.style.display = 'flex';
         syncImageDimensions();
-        
+
+      } catch (err) {
+        alert("AI Processing Error: " + err.message);
+        console.error(err);
+      } finally {
         hideLoader();
-      }, 3000);
+      }
     }
 
-    function applyCanvasFilter(type) {
-      processedCanvas.width = loadedImage.width;
-      processedCanvas.height = loadedImage.height;
+    async function pollPredictionStatus(pollUrl) {
+      const maxAttempts = 30;
+      let attempts = 0;
 
-      // Reset filters
-      ctx.filter = 'none';
-      ctx.clearRect(0, 0, processedCanvas.width, processedCanvas.height);
+      while (attempts < maxAttempts) {
+        attempts++;
+        showLoader(`AI Processing... (${attempts * 2}s)`);
 
-      // Apply filter variations using Canvas 2D Context
-      switch(type) {
-        case '4k':
-          // Enhance 4K: High contrast, sharpness, slight saturation boost
-          ctx.filter = 'contrast(130%) brightness(105%) saturate(115%)';
-          ctx.drawImage(loadedImage, 0, 0);
-          break;
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-        case 'smooth':
-          // Face Smooth: Soft brightness, smooth contrast
-          ctx.filter = 'contrast(108%) brightness(112%) saturate(105%) blur(0.5px)';
-          ctx.drawImage(loadedImage, 0, 0);
-          break;
+        const res = await fetch(CORS_PROXY + encodeURIComponent(pollUrl), {
+          headers: {
+            "Authorization": `Token ${REPLICATE_API_KEY}`
+          }
+        });
 
-        case 'bg':
-          // Mock BG Removal: Draw AI Dark Vignette / Studio Background
-          let gradient = ctx.createRadialGradient(
-            processedCanvas.width / 2, processedCanvas.height / 2, 50,
-            processedCanvas.width / 2, processedCanvas.height / 2, processedCanvas.width / 1.2
-          );
-          gradient.addColorStop(0, '#333333');
-          gradient.addColorStop(1, '#050505');
-          ctx.fillStyle = gradient;
-          ctx.fillRect(0, 0, processedCanvas.width, processedCanvas.height);
+        if (!res.ok) continue;
 
-          // Draw subjects over background with enhanced pop
-          ctx.filter = 'contrast(125%) brightness(110%)';
-          ctx.drawImage(loadedImage, 0, 0);
-          break;
+        const data = await res.json();
 
-        case 'cartoon':
-          // AI Cartoon: High saturation, high contrast posterized look
-          ctx.filter = 'contrast(170%) saturate(200%) brightness(105%)';
-          ctx.drawImage(loadedImage, 0, 0);
-          break;
+        if (data.status === "succeeded") {
+          return Array.isArray(data.output) ? data.output[0] : data.output;
+        } else if (data.status === "failed" || data.status === "canceled") {
+          throw new Error(data.error || "AI processing failed.");
+        }
       }
+
+      throw new Error("Request timed out.");
     }
 
     /* ==========================================================================
        DOWNLOAD & UTILITY FUNCTIONS
        ========================================================================== */
-    function downloadImage() {
-      const dataUrl = imgAfter.src;
-      if (!dataUrl) return;
+    async function downloadImage() {
+      const imageUrl = imgAfter.src;
+      if (!imageUrl) return;
 
-      const link = document.createElement('a');
-      link.download = 'nova-remini-enhanced.jpg';
-      link.href = dataUrl;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      try {
+        showLoader("Preparing HD Download...");
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.download = 'nova-remini-enhanced.jpg';
+        link.href = blobUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      } catch (e) {
+        window.open(imageUrl, '_blank');
+      } finally {
+        hideLoader();
+      }
     }
 
     function showLoader(text) {
@@ -559,7 +586,7 @@
       loader.style.display = 'none';
     }
 
-    // Drag and Drop listeners for upload box
+    // Drag and drop listeners
     const dropZone = document.getElementById('dropZone');
     ['dragenter', 'dragover'].forEach(eventName => {
       dropZone.addEventListener(eventName, (e) => {
