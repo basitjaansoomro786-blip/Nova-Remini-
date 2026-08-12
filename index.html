@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NOVA REMINI ✨ AI Photo Enhancer</title>
+  <style>
+    /* ==========================================================================
+       1. GLOBAL & THEME STYLES (NOVA REMINI CLONE)
+       ========================================================================== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background-color: #0A0A0A;
+      color: #FFFFFF;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 15px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 650px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Gold Gradient Header */
+    header {
+      text-align: center;
+      padding: 10px 0;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #FFF 0%, #FFD700 50%, #FF8C00 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    header p {
+      color: #888;
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+
+    /* ==========================================================================
+       2. UPLOAD ZONE
+       ========================================================================== */
+    .upload-box {
+      border: 2px dashed #FFD700;
+      border-radius: 16px;
+      background: rgba(255, 215, 0, 0.03);
+      padding: 35px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .upload-box:hover {
+      background: rgba(255, 215, 0, 0.08);
+      border-color: #FFA500;
+      transform: translateY(-2px);
+    }
+
+    .upload-icon {
+      font-size: 2.8rem;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .upload-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #FFD700;
+      margin-bottom: 4px;
+    }
+
+    .upload-sub {
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    /* ==========================================================================
+       3. AI TOOLS GRID
+       ========================================================================== */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .tool-btn {
+      background: #141414;
+      border: 1px solid #2A2A2A;
+      border-radius: 12px;
+      padding: 14px 10px;
+      color: #FFF;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .tool-btn:hover:not(:disabled) {
+      border-color: #FFD700;
+      background: #1E1E1E;
+      color: #FFD700;
+      transform: translateY(-2px);
+    }
+
+    .tool-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ==========================================================================
+       4. BEFORE / AFTER COMPARISON SLIDER
+       ========================================================================== */
+    .comparison-container {
+      display: none;
+      flex-direction: column;
+      gap: 15px;
+      width: 100%;
+    }
+
+    .comparison-slider {
+      position: relative;
+      width: 100%;
+      height: 380px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #333;
+      background: #000;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    }
+
+    .slider-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #050505;
+    }
+
+    .img-before-wrapper {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 50%;
+      height: 100%;
+      overflow: hidden;
+      z-index: 2;
+      border-right: 2px solid #FFD700;
+    }
+
+    .img-before-wrapper .slider-img {
+      /* Width forced to match parent comparison box so images align perfectly */
+      width: 100%;
+      max-width: none;
+    }
+
+    /* Labels */
+    .label {
+      position: absolute;
+      top: 12px;
+      padding: 4px 10px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+      z-index: 4;
+      text-transform: uppercase;
+    }
+
+    .label-before {
+      left: 12px;
+      color: #AAA;
+    }
+
+    .label-after {
+      right: 12px;
+      color: #FFD700;
+      border-color: rgba(255, 215, 0, 0.4);
+    }
+
+    /* Range Input Slider Control */
+    .slider-control {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      z-index: 5;
+      cursor: ew-resize;
+    }
+
+    /* Slider Split Handle Line & Circle */
+    .slider-handle {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 2px;
+      background: #FFD700;
+      z-index: 3;
+      transform: translateX(-50%);
+      pointer-events: none;
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+    }
+
+    .slider-handle-button {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 36px;
+      height: 36px;
+      background: #FFD700;
+      border-radius: 50%;
+      color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+    }
+
+    /* ==========================================================================
+       5. ACTION BUTTONS & LOADING OVERLAY
+       ========================================================================== */
+    .download-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+      color: #000;
+      font-size: 1.1rem;
+      font-weight: 800;
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 4px 20px rgba(255, 215, 0, 0.3);
+      transition: all 0.2s ease;
+    }
+
+    .download-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(255, 215, 0, 0.4);
+    }
+
+    /* Loader Modal */
+    .loader-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(10, 10, 10, 0.9);
+      z-index: 99;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255, 215, 0, 0.1);
+      border-top-color: #FFD700;
+      border-radius: 50%;
+      animation: spin 1s infinite linear;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .loader-text {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #FFD700;
+    }
+
+    /* Responsive adjustment */
+    @media (max-width: 480px) {
+      .tools-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .comparison-slider {
+        height: 320px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <h1>NOVA REMINI ✨</h1>
+      <p>AI Photo Enhancer & Quality Restorer</p>
+    </header>
+
+    <!-- Upload Box -->
+    <div class="upload-box" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <span class="upload-icon">📸</span>
+      <div class="upload-title" id="uploadTitle">Select Photo</div>
+      <div class="upload-sub">Click or drag & drop image here (JPG, PNG)</div>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <!-- AI Tools Grid -->
+    <div class="tools-grid">
+      <button class="tool-btn" id="btn4k" disabled onclick="processImage('4k')">🚀 Enhance 4K</button>
+      <button class="tool-btn" id="btnSmooth" disabled onclick="processImage('smooth')">🧑 Face Smooth</button>
+      <button class="tool-btn" id="btnBg" disabled onclick="processImage('bg')">🟢 BG Remove</button>
+      <button class="tool-btn" id="btnCartoon" disabled onclick="processImage('cartoon')">🎨 AI Cartoon</button>
+    </div>
+
+    <!-- Before/After Comparison Container -->
+    <div class="comparison-container" id="comparisonContainer">
+      <div class="comparison-slider" id="sliderContainer">
+        <!-- Labels -->
+        <span class="label label-before">Original</span>
+        <span class="label label-after">Enhanced</span>
+
+        <!-- After Image (Full background layer) -->
+        <img id="imgAfter" class="slider-img" alt="Enhanced Photo">
+
+        <!-- Before Image (Clipped overlay layer) -->
+        <div class="img-before-wrapper" id="beforeWrapper">
+          <img id="imgBefore" class="slider-img" alt="Original Photo">
+        </div>
+
+        <!-- Slider Line & Handle -->
+        <div class="slider-handle" id="sliderHandle">
+          <div class="slider-handle-button">↔</div>
+        </div>
+
+        <!-- Interactive Range Input -->
+        <input type="range" min="0" max="100" value="50" class="slider-control" id="sliderRange">
+      </div>
+
+      <!-- Download Button -->
+      <button class="download-btn" onclick="downloadImage()">
+        ⬇️ Download HD
+      </button>
+    </div>
+  </div>
+
+  <!-- Processing Modal Loader -->
+  <div class="loader-overlay" id="loader">
+    <div class="spinner"></div>
+    <div class="loader-text" id="loaderText">AI Enhancing... 5 sec</div>
+  </div>
+
+  <!-- Offscreen Canvas for Image Processing -->
+  <canvas id="processingCanvas" style="display: none;"></canvas>
+
+  <script>
+    /* ==========================================================================
+       REAL AI INTEGRATION PLACEHOLDER
+       ========================================================================== */
+    const REPLICATE_API_KEY = "YOUR_API_KEY_HERE";
+
+    // Global references
+    let loadedImage = null;
+    let processedCanvas = document.getElementById('processingCanvas');
+    let ctx = processedCanvas.getContext('2d');
+
+    const fileInput = document.getElementById('fileInput');
+    const uploadTitle = document.getElementById('uploadTitle');
+    const imgBefore = document.getElementById('imgBefore');
+    const imgAfter = document.getElementById('imgAfter');
+    const beforeWrapper = document.getElementById('beforeWrapper');
+    const sliderHandle = document.getElementById('sliderHandle');
+    const sliderRange = document.getElementById('sliderRange');
+    const comparisonContainer = document.getElementById('comparisonContainer');
+    const loader = document.getElementById('loader');
+    const toolBtns = document.querySelectorAll('.tool-btn');
+
+    /* ==========================================================================
+       FILE LOADING & HANDLING
+       ========================================================================== */
+    fileInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        loadImage(file);
+      }
+    });
+
+    function loadImage(file) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          loadedImage = img;
+          
+          // Set source images
+          imgBefore.src = event.target.result;
+          imgAfter.src = event.target.result;
+
+          // Enable AI tool buttons
+          toolBtns.forEach(btn => btn.disabled = false);
+          
+          uploadTitle.innerText = "Photo Loaded: " + file.name;
+          
+          // Automatically run 4K enhance on first upload
+          processImage('4k');
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    /* ==========================================================================
+       BEFORE / AFTER SLIDER LOGIC
+       ========================================================================== */
+    sliderRange.addEventListener('input', function(e) {
+      const val = e.target.value;
+      beforeWrapper.style.width = val + '%';
+      sliderHandle.style.left = val + '%';
+    });
+
+    // Ensure image alignment inside clipped before-wrapper
+    function syncImageDimensions() {
+      const containerWidth = document.getElementById('sliderContainer').offsetWidth;
+      imgBefore.style.width = containerWidth + 'px';
+    }
+    window.addEventListener('resize', syncImageDimensions);
+
+    /* ==========================================================================
+       AI PROCESSING & CANVAS SIMULATION
+       ========================================================================== */
+    function processImage(type) {
+      if (!loadedImage) return;
+
+      // TODO: Call Replicate API for GFPGAN, Real-ESRGAN, Background Removal
+      // Example endpoint: https://api.replicate.com/v1/predictions
+
+      showLoader("AI Enhancing... Please wait");
+
+      // Simulate AI processing delay with setTimeout (3 sec)
+      setTimeout(() => {
+        applyCanvasFilter(type);
+        
+        // Update Enhanced image view
+        imgAfter.src = processedCanvas.toDataURL('image/jpeg', 0.95);
+        
+        // Show comparison box & sync dimensions
+        comparisonContainer.style.display = 'flex';
+        syncImageDimensions();
+        
+        hideLoader();
+      }, 3000);
+    }
+
+    function applyCanvasFilter(type) {
+      processedCanvas.width = loadedImage.width;
+      processedCanvas.height = loadedImage.height;
+
+      // Reset filters
+      ctx.filter = 'none';
+      ctx.clearRect(0, 0, processedCanvas.width, processedCanvas.height);
+
+      // Apply filter variations using Canvas 2D Context
+      switch(type) {
+        case '4k':
+          // Enhance 4K: High contrast, sharpness, slight saturation boost
+          ctx.filter = 'contrast(130%) brightness(105%) saturate(115%)';
+          ctx.drawImage(loadedImage, 0, 0);
+          break;
+
+        case 'smooth':
+          // Face Smooth: Soft brightness, smooth contrast
+          ctx.filter = 'contrast(108%) brightness(112%) saturate(105%) blur(0.5px)';
+          ctx.drawImage(loadedImage, 0, 0);
+          break;
+
+        case 'bg':
+          // Mock BG Removal: Draw AI Dark Vignette / Studio Background
+          let gradient = ctx.createRadialGradient(
+            processedCanvas.width / 2, processedCanvas.height / 2, 50,
+            processedCanvas.width / 2, processedCanvas.height / 2, processedCanvas.width / 1.2
+          );
+          gradient.addColorStop(0, '#333333');
+          gradient.addColorStop(1, '#050505');
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, processedCanvas.width, processedCanvas.height);
+
+          // Draw subjects over background with enhanced pop
+          ctx.filter = 'contrast(125%) brightness(110%)';
+          ctx.drawImage(loadedImage, 0, 0);
+          break;
+
+        case 'cartoon':
+          // AI Cartoon: High saturation, high contrast posterized look
+          ctx.filter = 'contrast(170%) saturate(200%) brightness(105%)';
+          ctx.drawImage(loadedImage, 0, 0);
+          break;
+      }
+    }
+
+    /* ==========================================================================
+       DOWNLOAD & UTILITY FUNCTIONS
+       ========================================================================== */
+    function downloadImage() {
+      const dataUrl = imgAfter.src;
+      if (!dataUrl) return;
+
+      const link = document.createElement('a');
+      link.download = 'nova-remini-enhanced.jpg';
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function showLoader(text) {
+      document.getElementById('loaderText').innerText = text;
+      loader.style.display = 'flex';
+    }
+
+    function hideLoader() {
+      loader.style.display = 'none';
+    }
+
+    // Drag and Drop listeners for upload box
+    const dropZone = document.getElementById('dropZone');
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#FFA500';
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#FFD700';
+      }, false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      if (files && files[0]) {
+        loadImage(files[0]);
+      }
+    });
+  </script>
+</body>
+</html>
